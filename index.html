@@ -88,12 +88,12 @@
 
     // 2) إعدادات مشروعك — استبدل القيم بقيم مشروعك من Firebase Console
     const firebaseConfig = {
-      apiKey: "PASTE_YOUR_API_KEY",
-      authDomain: "PASTE_YOUR_PROJECT.firebaseapp.com",
-      projectId: "PASTE_YOUR_PROJECT",
-      storageBucket: "PASTE_YOUR_PROJECT.firebasestorage.app",
-      messagingSenderId: "",
-      appId: "",
+      apiKey: "AIzaSyB7e3gjIFkqFzRhUYbsILBnZrapWia6zUs",
+      authDomain: "learn-a9948.firebaseapp.com",
+      projectId: "learn-a9948",
+      storageBucket: "learn-a9948.firebasestorage.app",
+      messagingSenderId: "410008299402",
+      appId: "1:410008299402:web:2ea3c300b1c38ea6cc8a73",
     };
 
     const app = initializeApp(firebaseConfig);
@@ -195,54 +195,5 @@
     // إذا فتحت الملف عبر file:// قد تواجه قيود متصفح. استعمل خادم محلي (Live Server في VS Code)
     // أو ارفع الملف لأي استضافة ثابتة (GitHub Pages / Firebase Hosting بالرفع من المتصفح).
   </script>
-<script type="module">
-  // استيراد Firebase
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
-
-  // بيانات مشروعك من Firebase Console → Project Settings → Web app
-  const firebaseConfig = {
-    apiKey: "AIzaSyB7e3gjIFkqFzRhUYbsILBnZrapWia6zUs",
-    authDomain: "learn-a9948.firebaseapp.com",
-    projectId: "learn-a9948",
-    storageBucket: "learn-a9948.firebasestorage.app",
-    messagingSenderId: "410008299402",
-    appId: "1:410008299402:web:2ea3c300b1c38ea6cc8a73"
-  };
-
-  // تهيئة التطبيق
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-
-  // مثال: إنشاء حساب جديد
-  document.getElementById("signupBtn").addEventListener("click", async () => {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      alert("✅ تم إنشاء الحساب بنجاح");
-    } catch (e) {
-      alert("❌ خطأ: " + e.message);
-    }
-  });
-
-  // مثال: تسجيل الدخول
-  document.getElementById("loginBtn").addEventListener("click", async () => {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    try {
-      const user = await signInWithEmailAndPassword(auth, email, password);
-      alert("مرحباً " + user.user.email);
-    } catch (e) {
-      alert("❌ خطأ: " + e.message);
-    }
-  });
-
-  // مثال: تسجيل الخروج
-  document.getElementById("logoutBtn").addEventListener("click", async () => {
-    await signOut(auth);
-    alert("👋 تم تسجيل الخروج");
-  });
-</script>
 </body>
 </html>
