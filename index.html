@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>تسجيل الدخول — Firebase Auth</title>
+  <style>
+    :root{--bg:#0f172a;--card:#111827;--muted:#94a3b8;--brand:#22c55e;--danger:#ef4444}
+    *{box-sizing:border-box}
+    body{margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Tajawal, Arial; background:var(--bg); color:#e5e7eb}
+    .wrap{min-height:100dvh; display:grid; place-items:center; padding:24px}
+    .card{width:100%; max-width:440px; background:var(--card); border:1px solid #1f2937; border-radius:16px; padding:22px; box-shadow:0 10px 40px rgba(0,0,0,.25)}
+    h1{margin:0 0 8px; font-size:24px}
+    p{margin:0 0 16px; color:var(--muted)}
+    label{display:block; margin:10px 0 6px}
+    input[type="email"], input[type="password"], input[type="text"]{width:100%; padding:12px 14px; border-radius:12px; border:1px solid #334155; background:#0b1220; color:#e5e7eb}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .actions{display:flex; align-items:center; justify-content:space-between; margin-top:14px}
+    .btn{padding:10px 14px; border-radius:12px; border:1px solid #16a34a; background:var(--brand); color:#0b1220; cursor:pointer; font-weight:600}
+    .btn.secondary{border-color:#334155; background:#0b1220; color:#e5e7eb}
+    .btn.google{border-color:#eab308; background:#fde68a; color:#111827}
+    .btn:hover{filter:brightness(.96)}
+    .muted{color:var(--muted)}
+    .err{margin-top:10px; color:var(--danger); font-size:14px; min-height:20px; white-space:pre-wrap}
+    .ok{color:#22c55e}
+    .footer{margin-top:16px; font-size:12px; color:#9ca3af; text-align:center}
+    .divider{height:1px; background:#1f2937; margin:16px 0}
+    .hidden{display:none}
+    .userbox{background:#0b1220; border:1px solid #334155; border-radius:12px; padding:12px; margin-top:12px}
+    a{color:#93c5fd}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>تسجيل الدخول</h1>
+      <p class="muted">مثال عملي يربط الصفحة بـ Firebase Authentication.</p>
+
+      <!-- حالة المستخدم -->
+      <div id="userBox" class="userbox hidden"></div>
+
+      <!-- نموذج البريد/كلمة المرور -->
+      <label for="email">البريد الإلكتروني</label>
+      <input id="email" type="email" placeholder="you@example.com" />
+
+      <label for="password">كلمة المرور</label>
+      <div class="row">
+        <input id="password" type="password" placeholder="••••••••" />
+        <button id="togglePwd" class="btn secondary" type="button">إظهار</button>
+      </div>
+
+      <div class="actions">
+        <button id="btnLogin" class="btn" type="button">دخول</button>
+        <button id="btnSignup" class="btn secondary" type="button">إنشاء حساب</button>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <button id="btnGoogle" class="btn google" type="button">دخول بحساب Google</button>
+        <button id="btnAnon" class="btn secondary" type="button">دخول مجهول</button>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <button id="btnReset" class="btn secondary" type="button">إرسال رابط استرجاع كلمة المرور</button>
+        <button id="btnLogout" class="btn secondary" type="button">خروج</button>
+      </div>
+
+      <div id="msg" class="err"></div>
+      <div class="divider"></div>
+      <div class="footer">💡 قبل الاستخدام: فعِّل مزودي تسجيل الدخول من Firebase Console → Authentication → Sign-in method. وأضف النطاقات المصرّح بها.</div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK (ES Modules) -->
+  <script type="module">
+    // 1) استيراد وحدات Firebase Auth
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { 
+      getAuth, 
+      onAuthStateChanged, 
+      signInWithEmailAndPassword, 
+      createUserWithEmailAndPassword, 
+      sendPasswordResetEmail,
+      signInAnonymously,
+      signOut,
+      GoogleAuthProvider,
+      signInWithPopup
+    } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+
+    // 2) إعدادات مشروعك — استبدل القيم بقيم مشروعك من Firebase Console
+    const firebaseConfig = {
+      apiKey: "PASTE_YOUR_API_KEY",
+      authDomain: "PASTE_YOUR_PROJECT.firebaseapp.com",
+      projectId: "PASTE_YOUR_PROJECT",
+      storageBucket: "PASTE_YOUR_PROJECT.firebasestorage.app",
+      messagingSenderId: "",
+      appId: "",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    // عناصر الواجهة
+    const $ = (s)=>document.querySelector(s);
+    const emailEl = $("#email");
+    const passEl = $("#password");
+    const msgEl = $("#msg");
+    const userBox = $("#userBox");
+
+    // عرض/إخفاء كلمة المرور
+    $("#togglePwd").addEventListener("click", ()=>{
+      const isPwd = passEl.getAttribute("type") === "password";
+      passEl.setAttribute("type", isPwd ? "text" : "password");
+      $("#togglePwd").textContent = isPwd ? "إخفاء" : "إظهار";
+    });
+
+    // مبدل رسائل
+    const showMsg = (text, ok=false)=>{
+      msgEl.textContent = text || "";
+      msgEl.className = ok ? "ok" : "err";
+    };
+
+    // مراقبة حالة تسجيل الدخول
+    onAuthStateChanged(auth, (user)=>{
+      if(user){
+        const name = user.displayName || "—";
+        const email = user.email || "—";
+        userBox.innerHTML = `✅ مستخدم مسجل:<br>UID: <b>${user.uid}</b><br>الاسم: <b>${name}</b><br>البريد: <b>${email}</b>`;
+        userBox.classList.remove("hidden");
+      } else {
+        userBox.classList.add("hidden");
+      }
+    });
+
+    // دخول بالبريد/كلمة المرور
+    $("#btnLogin").addEventListener("click", async()=>{
+      try{
+        showMsg("");
+        await signInWithEmailAndPassword(auth, emailEl.value, passEl.value);
+        showMsg("تم تسجيل الدخول بنجاح", true);
+      }catch(e){ showMsg(mapAuthError(e)); }
+    });
+
+    // إنشاء حساب جديد
+    $("#btnSignup").addEventListener("click", async()=>{
+      try{
+        showMsg("");
+        await createUserWithEmailAndPassword(auth, emailEl.value, passEl.value);
+        showMsg("تم إنشاء الحساب وتسجيل الدخول", true);
+      }catch(e){ showMsg(mapAuthError(e)); }
+    });
+
+    // دخول مجهول
+    $("#btnAnon").addEventListener("click", async()=>{
+      try{ showMsg(""); await signInAnonymously(auth); showMsg("تم الدخول المجهول", true); }
+      catch(e){ showMsg(mapAuthError(e)); }
+    });
+
+    // دخول بحساب Google (نافذة منبثقة)
+    $("#btnGoogle").addEventListener("click", async()=>{
+      try{ showMsg(""); await signInWithPopup(auth, provider); showMsg("تم تسجيل الدخول عبر Google", true); }
+      catch(e){ showMsg(mapAuthError(e)); }
+    });
+
+    // رابط استرجاع كلمة المرور
+    $("#btnReset").addEventListener("click", async()=>{
+      try{ 
+        await sendPasswordResetEmail(auth, emailEl.value);
+        showMsg("تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك", true);
+      }catch(e){ showMsg(mapAuthError(e)); }
+    });
+
+    // خروج
+    $("#btnLogout").addEventListener("click", async()=>{
+      try{ await signOut(auth); showMsg("تم تسجيل الخروج", true); }
+      catch(e){ showMsg(mapAuthError(e)); }
+    });
+
+    // مساعد لرسائل الأخطاء المفهومة
+    function mapAuthError(e){
+      const code = e?.code || "unknown";
+      const table = {
+        "auth/invalid-email": "البريد الإلكتروني غير صالح",
+        "auth/missing-password": "الرجاء إدخال كلمة المرور",
+        "auth/weak-password": "كلمة المرور ضعيفة (جرّب 6 أحرف فأكثر)",
+        "auth/email-already-in-use": "هذا البريد مستخدم مسبقًا",
+        "auth/invalid-credential": "بيانات الدخول غير صحيحة",
+        "auth/popup-closed-by-user": "تم إغلاق نافذة Google قبل إكمال العملية",
+        "auth/operation-not-allowed": "المزوّد غير مفعّل — فعِّله من Console",
+      };
+      return table[code] || `حدث خطأ: ${code}`;
+    }
+
+    // 💡 ملاحظة مهمة:
+    // إذا فتحت الملف عبر file:// قد تواجه قيود متصفح. استعمل خادم محلي (Live Server في VS Code)
+    // أو ارفع الملف لأي استضافة ثابتة (GitHub Pages / Firebase Hosting بالرفع من المتصفح).
+  </script>
+<script type="module">
+  // استيراد Firebase
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+
+  // بيانات مشروعك من Firebase Console → Project Settings → Web app
+  const firebaseConfig = {
+    apiKey: "AIzaSyB7e3gjIFkqFzRhUYbsILBnZrapWia6zUs",
+    authDomain: "learn-a9948.firebaseapp.com",
+    projectId: "learn-a9948",
+    storageBucket: "learn-a9948.firebasestorage.app",
+    messagingSenderId: "410008299402",
+    appId: "1:410008299402:web:2ea3c300b1c38ea6cc8a73"
+  };
+
+  // تهيئة التطبيق
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  // مثال: إنشاء حساب جديد
+  document.getElementById("signupBtn").addEventListener("click", async () => {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      alert("✅ تم إنشاء الحساب بنجاح");
+    } catch (e) {
+      alert("❌ خطأ: " + e.message);
+    }
+  });
+
+  // مثال: تسجيل الدخول
+  document.getElementById("loginBtn").addEventListener("click", async () => {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    try {
+      const user = await signInWithEmailAndPassword(auth, email, password);
+      alert("مرحباً " + user.user.email);
+    } catch (e) {
+      alert("❌ خطأ: " + e.message);
+    }
+  });
+
+  // مثال: تسجيل الخروج
+  document.getElementById("logoutBtn").addEventListener("click", async () => {
+    await signOut(auth);
+    alert("👋 تم تسجيل الخروج");
+  });
+</script>
+</body>
+</html>
